@@ -87,8 +87,7 @@
   <section id="c-qdisc">
     <title><constant>qdisc</constant></title>
     <para>
-      Simply put, a qdisc is a scheduler
-      (<xref linkend="e-scheduling"/>).  Every output interface needs a
+      简单来说，qdisc其实就是一个调度器（<xref linkend="e-scheduling"/>）。  Every output interface needs a
       scheduler of some kind, and the default scheduler is a &sch_fifo;.
       Other qdiscs available under Linux will rearrange the packets entering
       the scheduler's queue in accordance with that scheduler's rules.
