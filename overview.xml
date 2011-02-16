@@ -1,0 +1,226 @@
+<!-- start of file -->
+
+<!-- This .xml file is part of the Traffic-Control-HOWTO document -->
+
+<!-- $Id: overview.xml,v 1.4 2006/10/29 04:09:01 mabrown Exp $ -->
+
+<!--
+
+   The article was authored by Martin A. Brown <martin@linux-ip.net>
+   for the linux community, and has been released under the GNU Free
+   Documentation License (GFDL) through The Linux Documentation
+   Project (TLDP).
+
+   This was initially authored while Martin A. Brown worked for
+   SecurePipe, Inc.
+     
+   This HOWTO is likely available at the following address:
+
+     http://tldp.org/HOWTO/Traffic-Control-HOWTO/
+     
+  -->
+
+<!-- conventions used in this documentation....
+
+   - each section is a separate file
+
+  -->
+
+<section id="overview">
+
+  <title>Linux流量控制思想简介</title>
+  <para>
+    本节将会简要介绍
+    <link linkend="o-what-is">Linux流量控制</link>并说明<link linkend="o-why-use">为什么要实施流量控制</link>，同时指出实施流量控制的一些<link linkend="o-advantages">优点</link> 和<link linkend="o-disadvantages">缺点</link>，最后再介绍Linux流量控制思想中的关键要素。
+  </para>
+
+  <section id="o-what-is">
+    <title>什么是流量控制</title>
+    <para>流量控制就是在路由器上通过一系列队列，对数据包进行排序以控制它们的发送顺序，并通过一系列策略控制收到的和发送的数据包是否应该被丢弃，同时还要对数据包的发送速率进行控制。
+    </para>
+    <para>在大部分情况下，流量控制只有一个队列，接收收到的数据包（译者注：这里的接收到的数据包指的是由本机应用程序产生的数据包，而不是指从网络上接收到的数据包），把它们放入队列，并以网络硬件所能支持的最大速度发送出去。这种类型的队列叫做&sch_fifo;。
+    </para>
+    <note>
+	  Linux默认的排队规则是&link-sch_pfifo_fast;，这是一种比&link-sch_fifo;稍微复杂一点的排队规则。
+    </note>
+    <para>
+		不同的应用有不同类型的队列。队列就是一种用于组织未能立即开始的任务或数据流的方法（参考<xref linkend="0-queues"/>）。网络链路通常要求数据包以一定的顺序发送，因此我们需要在本机网络出口上使用队列来管理数据包。
+    </para>
+    <para>如果一台桌面电脑和一台流量较大的网站服务器共用一条网络链路，那就有可能发生带宽争夺。由于网站服务器的上行流量很大，超过了链路速度，从而路由器上的队列被来自网站服务器的数据包挤满。路由上的队列被挤满后，路由器就会开始丢包，这会导致桌面电脑的丢包率上升，数据延时增大。过大的延时会让桌面用户抓狂的。如果我们把这条链路分成两部分，分别给桌面电脑和网站服务器使用，就能较好地分配带宽资源，让两者都能比较正常地工作。
+    </para>
+    <para>在Linux下，用户可以通过一系列工具在网络端口上应用不同类型的队列和策略来实施流量控制。这些工具提供的功能都很强大，同时也很复杂。但是，虽然实施流量控制可以改善网络质量，但提高带宽所得到的效果总是优于实施流量控制的。
+    </para>
+    <para>
+	  QoS（Quality of Service，服务质量）通常也被当做是一种实施流量控制的方法。
+    </para>
+  </section>
+
+  <section id="o-why-use">
+    <title>为什么要实施流量控制</title>
+    <para>分组交换网络和电路交换网络的一个重要不同之处是，分组交换网络是无状态的，而电路交换网络是有状态的（如电话线路）。分组交换网络被设计成和IP网络一样，是无状态的网络，无状态属性保证了包交换网络的健壮性。
+    </para>
+    <para>无状态网络的缺点是无法很好地区分网络上的数据流类型。而通过实施流量控制，我们可以根据数据包的类型来决定其发送的方法和顺序，这就可以在无状态网络上模拟出一个有状态网络。
+
+    </para>
+    <para>  流量控制还可以用于很多网络环境下。下面列出了一些例子，在这些情况下，实施流量控制通常可以解决问题，至少也能把糟糕的情况改善一些。
+    </para>
+    <para>	  流量控制可用于很多情况，下面的例子并没有完全包括所有的情况。但列出这些例子可以帮助读者了解，在何种情况下实施流量控制可以收到不错的效果。
+
+    </para>
+    <itemizedlist>
+      <title>常见的流量控制实践</title>
+      <listitem>
+        <para>
+		  使用&link-sch_tbf;和&link-sch_htb;把带宽限制在一个数值之下。
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+		  使用&link-sch_htb;和&elements-classifying;，并配合使用&linux-filter;，限制某个用户、某个服务或某个程序所能使用的带宽。
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+		  在非对称线路（如ADSL）上最大化TCP协议的吞吐量。这可以通过提高ACK数据包的优先级来实现。
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+		  为某个用户或某个应用保留一定的带宽。这可以通过&link-sch_htb;和&elements-classifying;来实现。
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+		  提高延时敏感性型用的性能。这要通过在&link-sch_htb;内使用&link-sch_prio;来实现。
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+		  合理分配多余的带宽。可以通过&link-sch_htb;的租借机制来实现。
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+		  在无限制的网络上实现公平分配资源。这可以通过&link-sch_htb;的租借机制来实现。
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+        丢弃某种类型的数据包。这可以通过&linux-policer;和&linux-filter;来实现。
+        </para>
+      </listitem>
+    </itemizedlist>
+    <para>
+    记住，在大多数情况下，购买更多的带宽会比实施流量控制取得更好的效果。实施流量控制并非长久之计。
+    </para>
+    <para>
+    </para>
+  </section>
+
+  <section id="o-advantages">
+    <title>实施流量控制的好处</title>
+    <para>若能正确地实施流量控制，那就能让网络得到更充分地使用，减少网络上的竞争。大流量的下载不会破坏实时程序的交互性，同时也能让低优先级的数据传输（如电子邮件）正常进行。
+    </para>
+    <para>更广义上，如果流量控制的策略能很好地符合与用户约定好的网络使用规则，那么用户也就能更合理地使用有限的网络资源。
+    </para>
+    <para>
+    </para>
+  </section>
+
+  <section id="o-disadvantages">
+    <title>实施流量控制的缺点</title>
+    <para>
+    </para>
+    <para>复杂性是实施流量控制的一个主要缺点。虽然可以借助一系列工具的帮助来降低实施流量控制的复杂性，但是要想从已经配置好的流量控制方案中找出不恰当的配置也依旧不是一件容易的事情。
+    </para>
+    <para>正确实施流量控制可以更公平地分配网络资源，但若配置不恰当，可能反而会恶化网络环境，使网络资源的分配更加不公平。
+    </para>
+    <para>流量控制的规则越多，路由器就要使用更多的处理器资源来处理这些流量控制规则，我们要保证路由器有足够的能力来处理我们所设定的流量控制规则。幸运的是，路由器不需要消耗太多的计算资源就能处理比较复杂的规则。从另一方面来说，我们更应把注意力放在如何保证如此复杂的流量控制规则不会出现错误。
+    </para>
+    <para>对于个人用户来说，实施流量控制几乎是零成本的。但对于企业来说，实施流量控制所付出的成本可能要比购买更大的带宽还要多，因为雇用一个了解流量控制的员工所需的工资可能比每月的带宽费用还要多。
+    </para>
+    <para>
+      Although
+      traffic control on packet-switched networks covers a larger conceptual
+      area, you can think of traffic control as a way to provide [some of] the
+      statefulness of a circuit-based network to a packet-switched network.
+	 <!--看不出这和缺点有什么关系，暂不翻译-->
+    </para>
+  </section>
+
+  <section id="o-queues">
+    <title>队列</title>
+    <para>队列是调度的实现。一个队列中会有有限多个对象，这些对象将在队列中排队等待以便被处理。在网络中，队列中的对象就是数据包，数据包在队列中排队等待网卡将它们发送出去。最简单的一种情况是，队列中的数据包按照先进先出规则进行排队，最先进入队列的数据包将会被最先传输出去，而最后进入队列的数据包将被最后传输出去。
+      <footnote>
+        <para>
+        除了先进先出队列，还有一种队列是优先级队列。优先级队列可以让后到的数据包先被发送出去。
+        </para>
+      </footnote>.
+      在计算机网络（或计算机科学）中，这种排队方式就叫做 &sch_fifo;.
+    </para>
+    <para>如果不使用其他组件，单纯的队列无法提供流量控制的功能。队列只有两种操作，当数据包到来时执行入队操作，当有数据包可以发送时执行出队操作。
+    </para>
+    <para>当队列配合其他组件使用时，就能实现很多的功能。我们可以同时使用多个队列，对数据包进行重排、丢弃、改变优先级等操作。
+    </para>
+    <para>对运行在高层的应用来说，数据包只要能被发送出去就可以，至于发送顺序如何倒不是很重要。因此，对高层应用来说，流量控制系统就只是一条单一的队列。
+      <footnote>
+        <para>
+		  简单来说，流量控制系统对高层应用来说就是一个接收数据包的层而已。
+        </para>
+      </footnote>
+      只有对于流量控制本层来说，流量控制结构才是可见的和有意义的。
+    </para>
+  </section>
+
+  <section id="o-flows">
+    <title>数据流</title>
+    <para>一个数据流就是两台主机间建立的一条连接。任何经由这条连接发送的一系列数据包都可以看成这两台主机间的一条数据流。在TCP中，源IP和端口及目的IP和端口唯一决定了一条数据流。在UDP中也类似如此。
+    </para>
+    <para>流量控制可以将网络流量分割成不同类型的数据流，这些数据流可以作为一个整体进行传输（参考DiffServ）。不同的流量控制结构可以将网络流量平均地分割成不同的数据流。
+    </para>
+    <para>当网络中的数据流发生冲突时，对数据流进行处理就显得非常重要。这种情况常见于一个应用程序产生了大量的数据流时。
+    </para>
+  </section>
+
+  <section id="o-tokens">
+    <title>令牌桶</title>
+    <anchor id="o-buckets" xreflabel="Tokens and buckets"/>
+    <para>
+    在流量整形中，令牌桶算法是一种很常用的整形方法。
+    </para>
+    <para>为了控制队列中数据包出队的速率，就需要精确计算单位时间内出队的数据包数或数据包总大小，而这通常是很复杂的。为了进行简化，现在一般都使用另一种机制：系统以一定的速率产生令牌，每个数据包（或一个字节）对应一个令牌，只有当令牌充足的时候数据包才能出队。
+    </para>
+    <para>打个比方来说，在游乐园里有很多游客在排队等待乘坐过山车。让我们假设过山车按照固定的时间到来。游客必须等待一列过山车到来后才能乘坐。在这里，过山车上的位置就相当于令牌，而游客就相等于数据包。这就是网络速率限制，或者称为&elements-shaping;。在单位时间内，只能有固定数量的游客乘上过山车（出队）。
+    </para>
+    <para>继续这个过山车的比喻，假设某个时刻没有游客排队，而车站里有很多车子，这时候来了一大波游客，那么这些游客的大多数人（甚至是全部）都能立刻乘上过山车（因为此时车站里有很多空车）。车站里所能停放的过山车数量就是令牌桶中“桶”的大小。桶中积攒起来的令牌能在突然出现大量数据包时全部使用出去。
+    </para>
+    <para>让我们完成这个比喻。游乐园里的过山车以恒定速率到来，如果没有游客排队的话，就停放在等待区里，直到等待区里停满了车子。在令牌桶模型中，令牌以恒定的速率填充到桶中，直到桶满了为止。使用令牌桶模型进行流量整形能应付诸如HTTP应用之类会产生突发数据传输的情形。
+    </para>
+    <para>
+	  &link-sch_tbf; 排队规则是一个经典的流量整形实现（在&sch_tbf;小节中有一张图表能帮助读者理解令牌桶）。&sch_tbf;以&param-rate;的速率产生令牌，并在桶中有令牌的时候才发送数据包。
+    </para>
+    <para>当队列中没有数据包的时候，就暂时不需要使用令牌，这时令牌就会在桶中积累起来。如果桶的容量是无限制的，那就会失去流量整形的意义，因此，桶的容量必须是有限的。因为在桶中积累了一定数量的令牌，此时若队列中突然出现大量数据包需要出队，我们也有足够的令牌保证数据包能够顺畅出队。
+    </para>
+    <para>这就是说，一个装满的令牌桶能在一定时间内应付任何类型的流量。比较恒定的网络流量适合使用较小的令牌桶。经常有突发数据传输的网络则比较适合使用大的令牌桶，除非流量整形的目的是为了限制突发数据传输。
+    </para>
+    <para>概括来说，系统会以恒定的速率产生令牌，直到令牌桶满了为止。令牌桶能够在保证较长一段时间内网络流量在限制值以下，又能处理大速率的突发数据传输。
+    </para>
+    <para>
+     令牌桶模型也被应用于&link-sch_tbf;（一种&classless-qdiscs;）和&link-sch_htb;（一种&classful-qdiscs;）中。在&tcng;语言中，two- and three-color meters也是一种令牌桶模型的应用。
+    </para>
+  </section>
+
+  <section id="o-packets">
+    <title>数据包和帧</title>
+    <anchor id="o-frames"/>
+    <para>一块数据被称为什么取决于它位于哪一层网络栈中。虽然这里写出了数据包和帧两个名词，但在整个文档中将不会刻意区分这两个词在技术上的区别（这通常是错误的做法！）。
+    </para>
+    <para>帧通常被用于描述位于第二层（数据链路层）的数据块。以太网接口、PPP接口和T1接口都把位于第二层的数据块称为帧。在这种情况下，帧就是流量控制所要操作的对象。
+    </para>
+    <para>在其他情况下，位于第三层（网络层）的数据块被称为数据包。虽然不太精确，但本文将会使用数据包这一名词进行说明。
+    </para>
+  </section>
+
+</section>
+
+<!-- end of file -->
